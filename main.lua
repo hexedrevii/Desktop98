@@ -4,8 +4,12 @@ local Game      = require "src.worlds.Game"
 _G.unpack       = table.unpack or unpack
 
 function love.load()
+  love.graphics.setDefaultFilter("nearest", "nearest")
+
   Resources.manager:add("font", love.graphics.newFont("assets/W95F.otf", 21))
   Resources.manager:add("font-small", love.graphics.newFont("assets/W95F.otf", 18))
+
+  Resources.manager:add("start-icon", love.graphics.newImage("assets/windows.png"))
 
   Resources.worlds:set(Game)
 end
