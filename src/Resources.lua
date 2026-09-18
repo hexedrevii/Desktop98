@@ -1,8 +1,6 @@
-local WorldController = require "src.worlds.WorldController"
 local ResourceManager = require "src.ResourceManager"
 
 local Resources = {
-  worlds = WorldController.new(),
   manager = ResourceManager.new(),
 
   colours = {

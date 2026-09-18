@@ -89,13 +89,17 @@ function Button:update(delta)
     if self.anchorX then
       self.x = ox + (w * self.anchorX) - (self.w * self.anchorX) + self.offsetX
     else
-      self.x = self.parent.x + self.offsetX
+      if self.parent then
+        self.x = self.parent.x + self.offsetX
+      end
     end
 
     if self.anchorY then
       self.y = oy + (h * self.anchorY) - (self.h * self.anchorY) + self.offsetY
     else
-      self.y = self.parent.y + self.offsetY
+      if self.parent then
+        self.y = self.parent.y + self.offsetY
+      end
     end
   end
 end

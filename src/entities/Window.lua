@@ -5,17 +5,20 @@ local Header    = require "src.entities.Header"
 ---@field y number
 ---@field w integer
 ---@field h integer
+---@field canvas love.Canvas
 ---@field title string
 ---@field header Header
+---@field pid integer
 ---@field private outlineOffset number
 ---@field focus boolean
 local Window    = {}
 Window.__index  = Window
 
-function Window.new(w, h, title)
+function Window.new(x, y, pid, w, h, title)
   local window = {
-    x = 100,
-    y = 100,
+    x = x,
+    y = y,
+    pid = pid,
 
     w = w,
     h = h,
@@ -28,7 +31,17 @@ function Window.new(w, h, title)
 
   window.header = Header.new(window)
 
+  local sw, sh = window.w - 10, window.h - window.header.h - window.header.oy * 2 - 5
+  window.canvas = love.graphics.newCanvas(sw, sh)
+
   return window
+end
+
+function Window:drawContent()
+  local sx, sy = math.floor(self.x), math.floor(self.y + self.header.h + self.header.oy * 2)
+
+  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.draw(self.canvas, sx + 5, sy)
 end
 
 function Window:update(delta)
@@ -70,6 +83,10 @@ function Window:draw()
 
   -- Header
   self.header:draw()
+
+  love.graphics.setColor(1, 1, 1, 1)
+
+  self:drawContent()
 
   love.graphics.setColor(1, 1, 1, 1)
 end
