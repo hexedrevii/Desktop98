@@ -37,6 +37,8 @@ function Kernel:process(path, streams)
     return nil, chunkErr
   end
 
+  jit.off(chunk, true)
+
   local env = mkEnvironment(self, pid, streams)
 
   setfenv(chunk, env)
@@ -44,12 +46,26 @@ function Kernel:process(path, streams)
   local lock = coroutine.create(function()
     local app = chunk()
 
-    if type(app) == "table" and type(app.run) == "function" then
-      local delta = coroutine.yield()
+    if type(app) == "table" then
+      local delta, events = coroutine.yield()
       while true do
-        app.run(delta)
+        if events then
+          for _, event in ipairs(events) do
+            -- First should ALWAYS be the event name
+            local name = event[1]
 
-        delta = coroutine.yield()
+            local callback = app[name]
+            if type(callback) == "function" then
+              callback(unpack(event, 2))
+            end
+          end
+        end
+
+        if type(app.run) == "function" then
+          app.run(delta)
+        end
+
+        delta, events = coroutine.yield()
       end
     end
   end)
@@ -61,11 +77,12 @@ function Kernel:process(path, streams)
   end
 
   if coroutine.status(lock) ~= "dead" then
-    table.insert(self.processes, pid, {
+    self.processes[pid] = {
       pid = pid,
       thread = lock,
       status = "running", -- MIIIIGHT be useless?
-    })
+      events = {},        -- LOVE events translated so the Kernel can understand.
+    }
   end
 
   return pid
@@ -79,7 +96,14 @@ function Kernel:update(delta)
       error("Kernel: CPU Quota exceeded (Did you forget to break out of a loop?)")
     end, "", 1000)
 
-    local success, err = coroutine.resume(process.thread)
+    local success, err = coroutine.resume(process.thread, delta, process.events)
+
+    -- Clear out watchdog
+    debug.sethook(process.thread)
+
+    -- Clear out events so they don't mess up
+    process.events = {}
+
     if not success then
       print("Kernel: Process " .. tostring(pid) .. " crashed: " .. tostring(err))
 
@@ -98,13 +122,7 @@ function Kernel:keypressed(key)
   local pid = WindowManager:getFocusedPID()
 
   if pid and self.processes[pid] then
-    local app = self.processes[pid].instance
-    if app and type(app.keypressed) == "function" then
-      local success, err = pcall(app.keypressed, key)
-      if not success then
-        print("App " .. pid .. " crashed on keypress: " .. tostring(err))
-      end
-    end
+    table.insert(self.processes[pid].events, { "keypressed", key })
   end
 end
 
@@ -112,13 +130,7 @@ function Kernel:textinput(text)
   local pid = WindowManager:getFocusedPID()
 
   if pid and self.processes[pid] then
-    local app = self.processes[pid].instance
-    if app and type(app.textinput) == "function" then
-      local success, err = pcall(app.textinput, text)
-      if not success then
-        print("App " .. pid .. " crashed on textinput: " .. tostring(err))
-      end
-    end
+    table.insert(self.processes[pid].events, { "textinput", text })
   end
 end
 

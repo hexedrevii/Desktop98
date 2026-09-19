@@ -11,6 +11,7 @@ return function(kernel, pid, streams)
     unpack = unpack,
     tostring = tostring,
     tonumber = tonumber,
+    type = type,
 
     print = function(...)
       local args = { ... }
