@@ -1,5 +1,5 @@
 local mkGraphics = require "src.API.Graphics"
-local WindowManager = require "src.modules.WindowManager"
+local mkSystem = require "src.API.System"
 
 return function(kernel, pid, streams)
   local env = {
@@ -21,17 +21,8 @@ return function(kernel, pid, streams)
       streams.stdout(str)
     end,
 
-    window = function(w, h, title)
-      return WindowManager:window(pid, w, h, title)
-    end,
-
-    system = {
-      execute = function(target, targetStream)
-        return kernel:process(target, targetStream)
-      end
-    },
-
-    graphics = mkGraphics(pid)
+    graphics = mkGraphics(pid),
+    system = mkSystem(kernel, pid)
   }
 
   return env

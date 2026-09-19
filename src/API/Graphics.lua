@@ -1,9 +1,14 @@
 local Colour = require "src.API.Colour"
+local WindowManager = require "src.modules.WindowManager"
 
 return function(pid)
   local drawing = false
 
   local Graphics = {}
+
+  function Graphics.window(w, h, title)
+    return WindowManager:window(pid, w, h, title)
+  end
 
   function Graphics.beginDrawing(window)
     if drawing then

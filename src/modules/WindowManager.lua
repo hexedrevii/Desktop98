@@ -28,6 +28,19 @@ function WindowManager:getFocusedPID()
   return top.pid
 end
 
+function WindowManager:closeForPID(pid)
+  for i = #self.windows, 1, -1 do
+    local window = self.windows[i]
+    if window.pid == pid then
+      table.remove(self.windows, i)
+    end
+  end
+
+  if #self.windows ~= 0 then
+    self.windows[#self.windows].focus = true
+  end
+end
+
 function WindowManager:update(delta)
   for _, window in ipairs(self.windows) do
     window:update(delta)

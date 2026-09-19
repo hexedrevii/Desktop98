@@ -14,6 +14,17 @@ function Kernel:init()
   self.processes = {}
 end
 
+--- Equivalent of calling SIGKILL
+function Kernel:kill(pid)
+  local process = self.processes[pid]
+  if not process then
+    return
+  end
+
+  WindowManager:closeForPID(pid)
+  self.processes[pid] = nil
+end
+
 ---@param path string
 function Kernel:process(path, streams)
   local pid = self.nextPid
@@ -122,9 +133,9 @@ function Kernel:update(delta)
     if not success then
       print("Kernel: Process " .. tostring(pid) .. " crashed: " .. tostring(err))
 
-      -- TODO: Kill
+      self:kill(pid)
     elseif coroutine.status(process.thread) == "dead" then
-      -- TODO: Kill
+      self:kill(pid)
     end
   end
 end
