@@ -19,11 +19,26 @@ function Kernel:process(path, streams)
   local pid = self.nextPid
   self.nextPid = self.nextPid + 1
 
-  streams = streams or {
-    stdout = function(text)
-      print("[STDOUT] " .. text)
+  streams = streams
+  if streams then
+    streams.stdout = streams.stdout or function(text)
+      print("[STDOUT " .. "(" .. pid .. ")] " .. text)
     end
-  }
+
+    streams.stderr = streams.stderr or function(text)
+      print("[STDERR " .. "(" .. pid .. ")] " .. text)
+    end
+  else
+    streams = {
+      stdout = function(text)
+        print("[STDOUT " .. "(" .. pid .. ")] " .. text)
+      end,
+
+      stderr = function(text)
+        print("[STDERR " .. "(" .. pid .. ")] " .. text)
+      end
+    }
+  end
 
   local content, contentErr = VirtualFS:read(path)
   if not content then
