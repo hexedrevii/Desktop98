@@ -96,9 +96,19 @@ function Kernel:process(path, streams)
     end
   end)
 
+  debug.sethook(lock, function()
+    error("Kernel: " .. path .. " crashed on start: CPU Quota exceeded.")
+  end, "", 1000)
+
   local success, err = coroutine.resume(lock)
+
+  debug.sethook(lock)
+
   if not success then
     print("Kernel: Process " .. path .. " crashed on start: " .. tostring(err))
+
+    WindowManager:closeForPID(pid)
+
     return nil, "Crash: " .. tostring(err)
   end
 
