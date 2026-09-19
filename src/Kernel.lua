@@ -1,7 +1,7 @@
 local VirtualFS = require "src.modules.VFS"
 local WindowManager = require "src.modules.WindowManager"
 
-local mkGraphics = require "src.API.Graphics"
+local mkEnvironment = require "src.API.Environment"
 
 local Kernel = {}
 
@@ -37,49 +37,34 @@ function Kernel:process(path, streams)
     return nil, chunkErr
   end
 
-  local env = {
-    table = table,
-    string = string,
-    math = math,
-    pairs = pairs,
-    ipairs = ipairs,
-    unpack = unpack,
-    tostring = tostring,
-    tonumber = tonumber,
-
-    print = function(...)
-      local args = { ... }
-      local str = ""
-
-      for _, v in ipairs(args) do str = str .. tostring(v) .. "\t" end
-      streams.stdout(str)
-    end,
-
-    window = function(w, h, title)
-      return WindowManager:window(pid, w, h, title)
-    end,
-
-    system = {
-      execute = function(target, targetStream)
-        return self:process(target, targetStream)
-      end
-    },
-
-    graphics = mkGraphics(pid)
-  }
+  local env = mkEnvironment(self, pid, streams)
 
   setfenv(chunk, env)
-  local success, data = pcall(chunk)
+
+  local lock = coroutine.create(function()
+    local app = chunk()
+
+    if type(app) == "table" and type(app.run) == "function" then
+      local delta = coroutine.yield()
+      while true do
+        app.run(delta)
+
+        delta = coroutine.yield()
+      end
+    end
+  end)
+
+  local success, err = coroutine.resume(lock)
   if not success then
-    print("Kernel: Could not create process " .. path .. " crashed on start: " .. tostring(data))
-    return nil, "Crash: " .. tostring(data)
+    print("Kernel: Process " .. path .. " crashed on start: " .. tostring(err))
+    return nil, "Crash: " .. tostring(err)
   end
 
-  if data and type(data) == "table" then
+  if coroutine.status(lock) ~= "dead" then
     table.insert(self.processes, pid, {
       pid = pid,
-      instance = data or {},
-      status = "running",
+      thread = lock,
+      status = "running", -- MIIIIGHT be useless?
     })
   end
 
@@ -89,20 +74,18 @@ end
 function Kernel:update(delta)
   WindowManager:update(delta)
 
-  for _, process in pairs(self.processes) do
-    -- The App has an actual instance and not a one-and-done
-    if process.instance then
-      -- Has a "run" function (which is just the update/draw mangled)
-      if type(process.instance.run) == "function" then
-        -- Optional delta arg
-        local success, err = pcall(process.instance.run, delta)
+  for pid, process in pairs(self.processes) do
+    debug.sethook(process.thread, function()
+      error("Kernel: CPU Quota exceeded (Did you forget to break out of a loop?)")
+    end, "", 1000)
 
-        if not success then
-          print("Kernel: Process " .. process.pid .. " crashed! Error: " .. tostring(err))
+    local success, err = coroutine.resume(process.thread)
+    if not success then
+      print("Kernel: Process " .. tostring(pid) .. " crashed: " .. tostring(err))
 
-          -- TODO: Kill process (in kernel, AND wm)
-        end
-      end
+      -- TODO: Kill
+    elseif coroutine.status(process.thread) == "dead" then
+      -- TODO: Kill
     end
   end
 end
