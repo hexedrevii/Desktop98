@@ -10,6 +10,7 @@ function love.load()
   love.graphics.setDefaultFilter("nearest", "nearest")
   Resources.manager:add("font", love.graphics.newFont("assets/W95F.otf", 21))
   Resources.manager:add("font-small", love.graphics.newFont("assets/W95F.otf", 18))
+  Resources.manager:add("font-smaller", love.graphics.newFont("assets/W95F.otf", 10))
 
   Resources.manager:add("start-icon", love.graphics.newImage("assets/windows.png"))
 

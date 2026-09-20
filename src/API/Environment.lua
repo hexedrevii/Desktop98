@@ -1,5 +1,6 @@
 local mkGraphics = require "src.API.Graphics"
 local mkSystem = require "src.API.System"
+local mkFilesystem = require "src.API.Filesystem"
 
 return function(kernel, pid, streams)
   local env = {
@@ -22,7 +23,8 @@ return function(kernel, pid, streams)
     end,
 
     graphics = mkGraphics(pid),
-    system = mkSystem(kernel, pid)
+    system = mkSystem(kernel, pid),
+    fs = mkFilesystem(pid)
   }
 
   return env

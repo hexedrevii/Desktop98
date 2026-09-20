@@ -6,6 +6,8 @@ local Resources = require "src.Resources"
 ---@field drag boolean
 ---@field ox number
 ---@field oy number
+---@field x number
+---@field y number
 ---@field private dragX number
 ---@field private dragY number
 local Header = {}
@@ -20,6 +22,9 @@ function Header.new(parent)
     w = 0, -- handled in update
     ox = 3,
     oy = 3,
+
+    x = 0,
+    y = 0,
 
     drag = false,
     dragX = 0,
@@ -37,6 +42,9 @@ function Header:update(delta)
     self.parent.x = mx - self.dragX
     self.parent.y = my - self.dragY
   end
+
+  self.x = self.parent.x + self.ox
+  self.y = self.parent.y + self.oy
 end
 
 function Header:draw()

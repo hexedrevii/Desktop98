@@ -8,6 +8,8 @@ local Kernel = {}
 function Kernel:init()
   self.nextPid = 1
 
+  self.CPUQuota = 10000
+
   VirtualFS:init()
   WindowManager:init()
 
@@ -25,10 +27,77 @@ function Kernel:kill(pid)
   self.processes[pid] = nil
 end
 
+--- Get Current Working Directory for a process
+function Kernel:getCWD(pid)
+  local process = self.processes[pid]
+
+  if process then
+    return process.cwd
+  end
+
+  return nil
+end
+
+--- Set Current Working Directory for a process
+function Kernel:setCWD(pid, path)
+  local process = self.processes[pid]
+  if not process then
+    return false
+  end
+
+  local raw = path
+  if path:sub(1, 1) ~= "/" then
+    if process.cwd == "/" then
+      raw = "/" .. path
+    else
+      raw = process.cwd .. "/" .. path
+    end
+  end
+
+  local normalised = VirtualFS:normalise(raw)
+  local info, err = VirtualFS:getInfo(normalised)
+
+  if info then
+    if info == "directory" then
+      process.cwd = normalised
+      return true
+    else
+      return false, "Not a directory."
+    end
+  else
+    return false, err
+  end
+end
+
 ---@param path string
-function Kernel:process(path, streams)
+---@param streams table? The output streams
+---@param parent integer? The PID of the parent process
+function Kernel:process(path, streams, parent)
   local pid = self.nextPid
   self.nextPid = self.nextPid + 1
+
+  -- Setup inheritence
+  local cwd = "/"
+  if parent and self.processes[parent] then
+    cwd = self.processes[parent].cwd
+
+    -- TODO: Environment Variables (local)
+  end
+
+  local absolute = path
+  if absolute:sub(1, 1) ~= "/" then
+    if cwd == "/" then
+      absolute = "/" .. absolute
+    else
+      absolute = cwd .. "/" .. absolute
+    end
+  end
+
+  absolute = VirtualFS:normalise(absolute)
+
+  if not parent then
+    cwd = absolute:match("(.*)/") or "/"
+  end
 
   streams = streams
   if streams then
@@ -51,15 +120,15 @@ function Kernel:process(path, streams)
     }
   end
 
-  local content, contentErr = VirtualFS:read(path)
+  local content, contentErr = VirtualFS:read(absolute)
   if not content then
-    print("Kernel: Could not create process " .. path .. ": " .. contentErr)
+    print("Kernel: Could not create process " .. absolute .. ": " .. contentErr)
     return nil, contentErr
   end
 
   local chunk, chunkErr = loadstring(content)
   if not chunk then
-    print("Kernel: Could not create process " .. path .. ": " .. chunkErr)
+    print("Kernel: Could not create process " .. absolute .. ": " .. chunkErr)
     return nil, chunkErr
   end
 
@@ -73,6 +142,10 @@ function Kernel:process(path, streams)
     local app = chunk()
 
     if type(app) == "table" then
+      if type(app.init) == "function" then
+        app.init()
+      end
+
       local delta, events = coroutine.yield()
       while true do
         if events then
@@ -96,29 +169,28 @@ function Kernel:process(path, streams)
     end
   end)
 
+  self.processes[pid] = {
+    pid = pid,
+    parent = parent,
+    thread = lock,
+    cwd = cwd,
+    events = {}, -- LOVE events translated so the Kernel can understand.
+  }
+
   debug.sethook(lock, function()
-    error("Kernel: " .. path .. " crashed on start: CPU Quota exceeded.")
-  end, "", 1000)
+    error("Kernel: " .. absolute .. " crashed on start: CPU Quota exceeded.")
+  end, "", self.CPUQuota)
 
   local success, err = coroutine.resume(lock)
 
   debug.sethook(lock)
 
   if not success then
-    print("Kernel: Process " .. path .. " crashed on start: " .. tostring(err))
+    print("Kernel: Process " .. absolute .. " crashed on start: " .. tostring(err))
 
     WindowManager:closeForPID(pid)
 
     return nil, "Crash: " .. tostring(err)
-  end
-
-  if coroutine.status(lock) ~= "dead" then
-    self.processes[pid] = {
-      pid = pid,
-      thread = lock,
-      status = "running", -- MIIIIGHT be useless?
-      events = {},        -- LOVE events translated so the Kernel can understand.
-    }
   end
 
   return pid
@@ -130,7 +202,7 @@ function Kernel:update(delta)
   for pid, process in pairs(self.processes) do
     debug.sethook(process.thread, function()
       error("Kernel: CPU Quota exceeded (Did you forget to break out of a loop?)")
-    end, "", 1000)
+    end, "", self.CPUQuota)
 
     local success, err = coroutine.resume(process.thread, delta, process.events)
 

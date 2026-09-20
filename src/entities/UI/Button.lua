@@ -137,7 +137,7 @@ function Button:draw()
   -- Text & image
   if not self.image then
     love.graphics.setFont(self.font)
-    love.graphics.setColor(Resources.colours.white)
+    love.graphics.setColor(Resources.colours.black)
     love.graphics.print(self.text, math.floor(self.x + self.padding), math.floor(self.y + self.padding))
   else
     love.graphics.setColor(1, 1, 1, 1)
