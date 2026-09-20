@@ -5,8 +5,27 @@ return function(kernel, pid)
     kernel:kill(pid)
   end
 
-  function System.execute(target, targetStream)
-    return kernel:process(target, targetStream, pid)
+  function System.execute(target, targetStream, args)
+    return kernel:process(target, args, targetStream, pid)
+  end
+
+  function System.getenv(name)
+    local process = kernel:getprocess(pid)
+    if process then
+      return process.env[name]
+    end
+
+    return nil
+  end
+
+  function System.setenv(name, value)
+    local process = kernel:getprocess(pid)
+    if process then
+      process.env[name] = value
+      return true
+    end
+
+    return false, "No process by PID " .. pid .. " exists."
   end
 
   function System.getCWD()

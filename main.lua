@@ -16,7 +16,6 @@ function love.load()
 
   Kernel:init()
   Kernel:process("/bin/terminal.lua")
-  Kernel:process("/bin/welcome.lua")
 end
 
 function love.update(delta)

@@ -23,6 +23,19 @@ function Kernel:kill(pid)
     return
   end
 
+  local parent = process.parent
+  if parent and self.processes[parent] then
+    table.insert(self.processes[parent].events, { "childdied", pid })
+  end
+
+  -- Kill all children
+  -- TODO: send them to an orphan process (init/launchd)
+  for _, child in pairs(self.processes) do
+    if child.parent == pid then
+      child.parent = nil
+    end
+  end
+
   WindowManager:closeForPID(pid)
   self.processes[pid] = nil
 end
@@ -69,10 +82,14 @@ function Kernel:setCWD(pid, path)
   end
 end
 
+function Kernel:getprocess(pid)
+  return self.processes[pid]
+end
+
 ---@param path string
 ---@param streams table? The output streams
 ---@param parent integer? The PID of the parent process
-function Kernel:process(path, streams, parent)
+function Kernel:process(path, args, streams, parent)
   local pid = self.nextPid
   self.nextPid = self.nextPid + 1
 
@@ -97,6 +114,13 @@ function Kernel:process(path, streams, parent)
 
   if not parent then
     cwd = absolute:match("(.*)/") or "/"
+  end
+
+  local vars = {}
+  if parent and self.processes[parent] then
+    for name, value in pairs(self.processes[parent].env) do
+      vars[name] = value
+    end
   end
 
   streams = streams
@@ -132,7 +156,11 @@ function Kernel:process(path, streams, parent)
     return nil, chunkErr
   end
 
-  jit.off(chunk, true)
+  -- Turn off JIT only if we are on JIT system
+  -- This can happen if we run in e.g. love.js (it uses lua 5.1)
+  if jit then
+    jit.off(chunk, true)
+  end
 
   local env = mkEnvironment(self, pid, streams)
 
@@ -143,7 +171,7 @@ function Kernel:process(path, streams, parent)
 
     if type(app) == "table" then
       if type(app.init) == "function" then
-        app.init()
+        app.init(args or {})
       end
 
       local delta, events = coroutine.yield()
@@ -162,6 +190,8 @@ function Kernel:process(path, streams, parent)
 
         if type(app.run) == "function" then
           app.run(delta)
+        else
+          self:kill(pid)
         end
 
         delta, events = coroutine.yield()
@@ -175,6 +205,7 @@ function Kernel:process(path, streams, parent)
     thread = lock,
     cwd = cwd,
     events = {}, -- LOVE events translated so the Kernel can understand.
+    env = vars
   }
 
   debug.sethook(lock, function()
