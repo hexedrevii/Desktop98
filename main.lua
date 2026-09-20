@@ -15,7 +15,7 @@ function love.load()
   Resources.manager:add("start-icon", love.graphics.newImage("assets/windows.png"))
 
   Kernel:init()
-  Kernel:process("/bin/terminal.lua")
+  Kernel:process("/apps/terminal.lua")
 end
 
 function love.update(delta)

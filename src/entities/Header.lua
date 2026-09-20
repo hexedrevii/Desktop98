@@ -63,8 +63,12 @@ function Header:draw()
 
   -- Text
   love.graphics.setColor(Resources.colours.white)
-  love.graphics.setFont(Resources.manager:get("font-small"))
-  love.graphics.print(self.parent.title, math.floor(self.parent.x + self.ox + 2), math.floor(self.parent.y + self.oy + 2))
+  love.graphics.print(
+    self.parent.title,
+    Resources.manager:get("font-small"),
+    math.floor(self.parent.x + self.ox + 2),
+    math.floor(self.parent.y + self.oy + 2)
+  )
 
   love.graphics.setColor(1, 1, 1, 1)
 end

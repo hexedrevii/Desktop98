@@ -10,7 +10,7 @@ local function resolve(path)
   if relative == "" then
     return VirtualFS.root
   else
-    return VirtualFS.root .. "/" .. relative
+    return VirtualFS.root .. relative
   end
 end
 
@@ -19,6 +19,10 @@ function VirtualFS:init()
 
   if not info then
     love.filesystem.createDirectory("rootfs")
+
+    love.filesystem.createDirectory("rootfs/bin")
+    love.filesystem.createDirectory("rootfs/apps")
+    love.filesystem.createDirectory("rootfs/sys")
   end
 end
 
@@ -37,6 +41,10 @@ function VirtualFS:normalise(path)
   if #stack == 0 then return "/" end
 
   return "/" .. table.concat(stack, "/")
+end
+
+function VirtualFS:translate(path)
+  return resolve(path)
 end
 
 function VirtualFS:getInfo(path)

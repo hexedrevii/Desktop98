@@ -10,6 +10,13 @@ function Kernel:init()
 
   self.CPUQuota = 10000
 
+  self.utsname = {
+    name = "Desktop98",
+    version = "0.0.1-beta",
+    branch = "DEVELOPER",
+    machine = "LÖVE-" .. string.format("%d.%d.%d", love.getVersion())
+  }
+
   VirtualFS:init()
   WindowManager:init()
 

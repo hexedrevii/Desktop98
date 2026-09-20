@@ -22,6 +22,14 @@ return function(kernel, pid, streams)
       streams.stdout(str)
     end,
 
+    printerr = function(...)
+      local args = { ... }
+      local str = ""
+
+      for _, v in ipairs(args) do str = str .. tostring(v) .. "\t" end
+      streams.stdout(str)
+    end,
+
     graphics = mkGraphics(pid),
     system = mkSystem(kernel, pid),
     fs = mkFilesystem(pid)

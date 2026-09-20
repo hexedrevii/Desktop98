@@ -9,6 +9,15 @@ return function(kernel, pid)
     return kernel:process(target, args, targetStream, pid)
   end
 
+  function System.uname()
+    local info = {}
+    for key, value in pairs(kernel.utsname) do
+      info[key] = value
+    end
+
+    return info
+  end
+
   function System.getenv(name)
     local process = kernel:getprocess(pid)
     if process then
