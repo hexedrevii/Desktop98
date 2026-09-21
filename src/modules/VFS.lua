@@ -1,5 +1,7 @@
 local VirtualFS = {
-  root = "rootfs"
+  root = "rootfs",
+
+  protected = {}
 }
 
 ---@param path string
@@ -14,6 +16,27 @@ local function resolve(path)
   end
 end
 
+local function recurseDelete(physical)
+  local info = love.filesystem.getInfo(physical)
+  if not info then
+    return true
+  end
+
+  if info.type == "directory" then
+    local items = love.filesystem.getDirectoryItems(physical)
+    for _, item in ipairs(items) do
+      local child = physical .. "/" .. item
+
+      local success = recurseDelete(child)
+      if not success then
+        return false, "Could not delete " .. child
+      end
+    end
+  end
+
+  return love.filesystem.remove(physical)
+end
+
 function VirtualFS:init()
   local info = love.filesystem.getInfo(self.root)
 
@@ -24,6 +47,29 @@ function VirtualFS:init()
     love.filesystem.createDirectory("rootfs/apps")
     love.filesystem.createDirectory("rootfs/sys")
   end
+end
+
+--- Makes a folder readonly
+function VirtualFS:readonly(path)
+  local info, err = self:getInfo(path)
+  if not info then
+    return false, err
+  end
+
+  table.insert(self.protected, self:normalise(path))
+  return true
+end
+
+function VirtualFS:isReadonly(path)
+  local clean = self:normalise(path)
+
+  for _, protected in ipairs(self.protected) do
+    if clean == protected or clean:sub(1, #protected + 1) == protected .. "/" then
+      return true
+    end
+  end
+
+  return false
 end
 
 function VirtualFS:normalise(path)
@@ -55,7 +101,7 @@ function VirtualFS:getInfo(path)
     return info.type
   end
 
-  return nil, "No such file or directory."
+  return nil, path .. ": No such file or directory."
 end
 
 --- Lists the contents of a directory
@@ -68,6 +114,34 @@ function VirtualFS:listDir(path)
   else
     return nil, "Not a directory."
   end
+end
+
+function VirtualFS:remove(path, recurse)
+  if self:isReadonly(path) then
+    return nil, "Could not remove " .. path .. " Read-Only filesystem."
+  end
+
+  local info, ierr = self:getInfo(path)
+  if not info then
+    return false, ierr
+  end
+
+  local physical = self:translate(path)
+  if recurse then
+    local success, err = recurseDelete(physical)
+    if not success then
+      return false, err
+    end
+
+    return true
+  end
+
+  local success = love.filesystem.remove(path)
+  if not success then
+    return false, "Could not erase file " .. path .. " (Is it a populated directory?)"
+  end
+
+  return true
 end
 
 ---Read a file.

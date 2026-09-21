@@ -33,7 +33,7 @@ return function(kernel, pid, streams)
 
     graphics = mkGraphics(pid),
     system = mkSystem(kernel, pid),
-    fs = mkFilesystem(pid)
+    fs = mkFilesystem(kernel, pid)
   }
 
   env.package = {

@@ -18,6 +18,8 @@ function Kernel:init()
   }
 
   VirtualFS:init()
+  VirtualFS:readonly("/sys")
+
   WindowManager:init()
 
   self.processes = {}
