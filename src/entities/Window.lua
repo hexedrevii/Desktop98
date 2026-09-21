@@ -65,7 +65,6 @@ function Window:drawContent()
   local sx, sy = math.floor(self.x), math.floor(self.y + self.header.h + self.header.oy * 2)
 
   love.graphics.setColor(1, 1, 1, 1)
-  love.graphics.setFont(Resources.manager:get("font-small"))
   love.graphics.draw(self.canvas, sx + 5, sy)
 end
 
