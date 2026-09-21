@@ -1,6 +1,7 @@
 local Resources = require "src.Resources"
 local Header    = require "src.entities.Header"
 local Button    = require "src.entities.UI.Button"
+local Utils     = require "src.Utils"
 ---@class Window
 ---@field x number
 ---@field y number
@@ -15,11 +16,13 @@ local Button    = require "src.entities.UI.Button"
 ---@field closeButton Button
 ---@field minimiseButton Button
 ---@field maximiseButton Button
+---@field id number
 local Window    = {}
 Window.__index  = Window
 
-function Window.new(x, y, pid, w, h, title)
+function Window.new(x, y, pid, w, h, title, closeRequest)
   local window = {
+    id = Utils.id(),
     x = x,
     y = y,
     pid = pid,
@@ -43,6 +46,11 @@ function Window.new(x, y, pid, w, h, title)
     anchorX = 1,
 
     offsetX = -4,
+    onPressed = function()
+      if closeRequest then
+        closeRequest()
+      end
+    end
   }, window.header)
 
   window.minimiseButton = Button.new({
@@ -53,6 +61,9 @@ function Window.new(x, y, pid, w, h, title)
     anchorX = 1,
 
     offsetX = -20,
+    onPressed = function()
+
+    end
   }, window.header)
 
   local sw, sh = window.w - 10, window.h - window.header.h - window.header.oy * 2 - 5
@@ -123,6 +134,14 @@ function Window:draw()
 end
 
 function Window:mousepressed(x, y, button)
+  if self.closeButton:mousepressed(x, y, button) then
+    return true
+  end
+
+  if self.minimiseButton:mousepressed(x, y, button) then
+    return false
+  end
+
   if self.header:mousepressed(x, y, button) then
     return true
   end
@@ -135,6 +154,9 @@ function Window:mousepressed(x, y, button)
 end
 
 function Window:mousereleased(x, y, button)
+  self.closeButton:mousereleased(x, y, button)
+  self.minimiseButton:mousereleased(x, y, button)
+
   self.header:mousereleased(x, y, button)
 end
 

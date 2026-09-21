@@ -1,4 +1,7 @@
 local Resources = require "src.Resources"
+local Utils     = require "src.Utils"
+
+
 ---@class Button
 ---@field parent any
 ---@field w number
@@ -15,7 +18,10 @@ local Resources = require "src.Resources"
 ---@field private padding number
 ---@field private gap number
 ---@field private anchored boolean
-local Button = {}
+---@field private hover boolean
+---@field private pressed boolean
+---@field private onPressed function
+local Button   = {}
 Button.__index = Button
 
 ---@class ButtonOptions
@@ -29,7 +35,8 @@ Button.__index = Button
 ---@field anchorX number? Anchor (0-1) X
 ---@field anchorY number? Anchor (0-1) Y
 ---@field gap number? Gap between image and text
-local __opts = {}
+---@field onPressed function
+local __opts   = {}
 
 ---@param opts ButtonOptions
 ---@param parent any? Position relative to parent or screen
@@ -52,6 +59,10 @@ function Button.new(opts, parent)
     text = opts.text,
     font = opts.font,
     image = opts.image,
+
+    hover = false,
+    pressed = false,
+    onPressed = opts.onPressed
   }
 
   button.anchored = button.anchorX or button.anchorY
@@ -102,6 +113,9 @@ function Button:update(delta)
       end
     end
   end
+
+  local mx, my = love.mouse.getPosition()
+  self.hover = Utils.pointrec(mx, my, self.x, self.y, self.w, self.h)
 end
 
 function Button:draw()
@@ -109,9 +123,12 @@ function Button:draw()
   love.graphics.setColor(Resources.colours.grey)
   love.graphics.rectangle("fill", math.floor(self.x), math.floor(self.y), math.floor(self.w), math.floor(self.h))
 
+  local light = self.pressed and Resources.colours.black or Resources.colours.white
+  local dark  = self.pressed and Resources.colours.white or Resources.colours.black
+
   -- Outlines
   -- Light
-  love.graphics.setColor(Resources.colours.white)
+  love.graphics.setColor(light)
   love.graphics.line(
     math.floor(self.x - 1), math.floor(self.y),
     math.floor(self.x - 1), math.floor(self.y + self.h)
@@ -123,7 +140,7 @@ function Button:draw()
   )
 
   -- Dark
-  love.graphics.setColor(Resources.colours.black)
+  love.graphics.setColor(dark)
   love.graphics.line(
     math.floor(self.x), math.floor(self.y + self.h + 1),
     math.floor(self.x + self.w), math.floor(self.y + self.h + 1)
@@ -152,6 +169,29 @@ function Button:draw()
   end
 
   love.graphics.setColor(1, 1, 1, 1)
+end
+
+function Button:mousepressed(x, y, button)
+  if button == 1 and self.hover then
+    self.pressed = true
+    return true
+  end
+
+  return false
+end
+
+function Button:mousereleased(x, y, button)
+  if button == 1 and self.pressed then
+    self.pressed = false
+
+    if self.hover and self.onPressed then
+      self.onPressed(self)
+    end
+
+    return true
+  end
+
+  return false
 end
 
 return Button

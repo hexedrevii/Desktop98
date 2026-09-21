@@ -8,19 +8,33 @@ return function(pid)
   local Graphics = {}
 
   function Graphics.window(w, h, title)
-    return WindowManager:window(pid, w, h, title)
+    local real = WindowManager:window(pid, w, h, title)
+
+    -- Proxy
+    return {
+      __INTERNAL_window_handle = real.id
+    }
   end
 
   function Graphics.beginDrawing(window)
+    if type(window) ~= "table" and not window.__INTERNAL_window_handle then
+      error("Graphics API: Invalid window object")
+    end
+
     if drawing then
       -- TODO: Kernel error crash (Cannot enter draw while already drawing)
     end
 
-    if window.pid ~= pid then
+    local real = WindowManager:getWithHandle(window.__INTERNAL_window_handle)
+    if not real then
+      error("STOP FUCKING WITH THE HANDLES.")
+    end
+
+    if real.pid ~= pid then
       -- TODO: Kernel error crash (Cannot draw to another Process)
     end
 
-    love.graphics.setCanvas(window.canvas)
+    love.graphics.setCanvas(real.canvas)
     drawing = true
   end
 

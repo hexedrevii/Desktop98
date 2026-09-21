@@ -1,13 +1,19 @@
 local Window = require "src.entities.Window"
 local WindowManager = {}
 
-function WindowManager:init()
+function WindowManager:init(kernel)
   ---@type Window[]
   self.windows = {}
+
+  self.kernel = kernel
 end
 
 function WindowManager:window(pid, w, h, title)
-  local instance = Window.new(100, 100, pid, w, h, title)
+  local function closeRequest()
+    self.kernel:raise(pid, { "quit" })
+  end
+
+  local instance = Window.new(100, 100, pid, w, h, title, closeRequest)
 
   for _, window in ipairs(self.windows) do
     window.focus = false
@@ -26,6 +32,16 @@ function WindowManager:getFocusedPID()
 
   local top = self.windows[#self.windows]
   return top.pid
+end
+
+function WindowManager:getWithHandle(handle)
+  for _, window in ipairs(self.windows) do
+    if window.id == handle then
+      return window
+    end
+  end
+
+  return nil
 end
 
 function WindowManager:closeForPID(pid)

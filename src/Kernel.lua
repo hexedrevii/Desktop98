@@ -20,9 +20,20 @@ function Kernel:init()
   VirtualFS:init()
   VirtualFS:readonly("/sys")
 
-  WindowManager:init()
+  WindowManager:init(self)
 
   self.processes = {}
+end
+
+function Kernel:raise(pid, event)
+  local process = self.processes[pid]
+
+  if process then
+    table.insert(process.events, event)
+    return true
+  end
+
+  return false
 end
 
 --- Equivalent of calling SIGKILL
@@ -183,6 +194,7 @@ function Kernel:process(path, args, streams, parent)
 
       local delta, events = coroutine.yield()
       while true do
+        local die = false
         if events then
           for _, event in ipairs(events) do
             -- First should ALWAYS be the event name
@@ -191,14 +203,18 @@ function Kernel:process(path, args, streams, parent)
             local callback = app[name]
             if type(callback) == "function" then
               callback(unpack(event, 2))
+            elseif name == "quit" then
+              die = true
             end
           end
         end
 
+        if die then break end
+
         if type(app.run) == "function" then
           app.run(delta)
         else
-          self:kill(pid)
+          break
         end
 
         delta, events = coroutine.yield()
