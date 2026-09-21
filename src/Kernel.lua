@@ -104,8 +104,6 @@ function Kernel:process(path, args, streams, parent)
   local cwd = "/"
   if parent and self.processes[parent] then
     cwd = self.processes[parent].cwd
-
-    -- TODO: Environment Variables (local)
   end
 
   local absolute = path
