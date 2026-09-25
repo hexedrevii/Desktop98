@@ -287,8 +287,6 @@ function Kernel:update(delta)
       print("Kernel: Process " .. tostring(pid) .. " crashed: " .. tostring(err))
 
       self:kill(pid)
-    elseif coroutine.status(process.thread) == "dead" then
-      self:kill(pid)
     end
   end
 end
