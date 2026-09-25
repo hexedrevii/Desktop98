@@ -3,7 +3,7 @@ local mkSystem     = require "src.API.System"
 local mkFilesystem = require "src.API.Filesystem"
 local VirtualFS    = require "src.modules.VFS"
 
-return function(kernel, pid, streams)
+return function(kernel, pid, streams, masterPerms)
   local env = {
     table = table,
     string = string,
@@ -31,7 +31,7 @@ return function(kernel, pid, streams)
       streams.stderr(str)
     end,
 
-    graphics = mkGraphics(pid),
+    graphics = mkGraphics(pid, masterPerms),
     system = mkSystem(kernel, pid),
     fs = mkFilesystem(kernel, pid)
   }

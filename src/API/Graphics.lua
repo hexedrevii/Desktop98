@@ -2,18 +2,74 @@ local Colour = require "src.API.Colour"
 local WindowManager = require "src.modules.WindowManager"
 local VirtualFS = require "src.modules.VFS"
 
-return function(pid)
+return function(pid, master)
   local drawing = false
 
   local Graphics = {}
 
-  function Graphics.window(w, h, title)
-    local real = WindowManager:window(pid, w, h, title)
+  local wmHints = {}
+  local ALLOWED_HINTS = {
+    no_focus = true,
+    borderless = true,
+    no_header = true,
+    no_background = true,
+    docked = true
+  }
+  local hintData = {
+    NO_FOCUS = "no_focus",
+    BORDERLESS = "borderless",
+    NO_HEADER = "no_header",
+    NO_BACKGROUND = "no_background",
+    TYPE_DOCK = "docked"
+  }
+  Graphics.WM = setmetatable({}, {
+    __index = hintData,
+    __newindex = function(t, key, value)
+      error("Security Violation: graphics.WM is read-only.")
+    end,
+
+    __metatable = false
+  })
+
+  function Graphics.window(w, h, title, hints)
+    hints = hints or {}
+
+    for _, hint in ipairs(hints) do
+      if not ALLOWED_HINTS[hint] then
+        error("graphics.window: Invalid window hint '" .. tostring(hint) .. "'")
+      end
+
+      if hint == "docked" and not master then
+        error("graphics.window: Security Violation: No permission for that.")
+      end
+
+      wmHints[hint] = true
+    end
+
+    local real = WindowManager:window(pid, w, h, title, wmHints)
 
     -- Proxy
     return {
-      __INTERNAL_window_handle = real.id
+      __INTERNAL_window_handle = real.id,
+
+      setDimensions = function(nw, nh)
+        real:resize(nw, nh)
+      end,
+
+      setPosition = function(nx, ny)
+        real:setPosition(nx, ny)
+      end,
+
+      getDimensions = function()
+        local ww, wh = real.canvas:getDimensions()
+        return ww, wh
+      end
     }
+  end
+
+  function Graphics.getDimensions()
+    local w, h = love.graphics.getDimensions()
+    return w, h
   end
 
   function Graphics.beginDrawing(window)
@@ -50,7 +106,13 @@ return function(pid)
   Graphics.colours = {
     white = Colour.new(1, 1, 1),
     black = Colour.new(0, 0, 0),
-    red = Colour.new(1, 0, 0)
+    red = Colour.new(1, 0, 0),
+
+    os = {
+      grey = Colour.new(0.765, 0.765, 0.765),
+      dark_grey = Colour.new(0.506, 0.506, 0.506),
+      dark_blue = Colour.new(0.004, 0, 0.506),
+    }
   }
 
   Graphics.Colour = Colour
@@ -110,6 +172,14 @@ return function(pid)
 
     love.graphics.setColor(colour:raw())
     love.graphics.rectangle(mode, math.floor(x), math.floor(y), math.floor(w), math.floor(h))
+    love.graphics.setColor(1, 1, 1, 1)
+  end
+
+  function Graphics.line(sx, sy, ex, ey, colour)
+    colour = colour or Graphics.colours.white
+
+    love.graphics.setColor(colour:raw())
+    love.graphics.line(sx, sy, ex, ey)
     love.graphics.setColor(1, 1, 1, 1)
   end
 

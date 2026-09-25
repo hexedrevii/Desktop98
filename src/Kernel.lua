@@ -23,6 +23,8 @@ function Kernel:init()
   WindowManager:init(self)
 
   self.processes = {}
+
+  self:process("/sys/desktop/taskbar.lua", nil, nil, nil, true)
 end
 
 function Kernel:raise(pid, event)
@@ -34,6 +36,12 @@ function Kernel:raise(pid, event)
   end
 
   return false
+end
+
+function Kernel:broadcast(event)
+  for pid, process in pairs(self.processes) do
+    table.insert(process.events, event)
+  end
 end
 
 --- Equivalent of calling SIGKILL
@@ -109,7 +117,7 @@ end
 ---@param path string
 ---@param streams table? The output streams
 ---@param parent integer? The PID of the parent process
-function Kernel:process(path, args, streams, parent)
+function Kernel:process(path, args, streams, parent, masterPermission)
   local pid = self.nextPid
   self.nextPid = self.nextPid + 1
 
@@ -180,7 +188,7 @@ function Kernel:process(path, args, streams, parent)
     jit.off(chunk, true)
   end
 
-  local env = mkEnvironment(self, pid, streams)
+  local env = mkEnvironment(self, pid, streams, masterPermission)
 
   setfenv(chunk, env)
 
@@ -302,6 +310,10 @@ end
 
 function Kernel:mousereleased(x, y, button)
   WindowManager:mousereleased(x, y, button)
+end
+
+function Kernel:resize(w, h)
+  self:broadcast({ "resolution", w, h })
 end
 
 return Kernel

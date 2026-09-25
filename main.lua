@@ -23,7 +23,7 @@ function love.update(delta)
 end
 
 function love.draw()
-  love.graphics.clear(1, 1, 1, 1)
+  love.graphics.clear(Resources.colours.default_green)
   Kernel:draw()
 end
 
@@ -41,4 +41,8 @@ end
 
 function love.mousereleased(x, y, button)
   Kernel:mousereleased(x, y, button)
+end
+
+function love.resize(w, h)
+  Kernel:resize(w, h)
 end
