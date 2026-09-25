@@ -236,7 +236,9 @@ function Kernel:process(path, args, streams, parent, masterPermission)
     thread = lock,
     cwd = cwd,
     events = {}, -- LOVE events translated so the Kernel can understand.
-    env = vars
+    env = vars,
+    master = masterPermission,
+    streams = streams
   }
 
   debug.sethook(lock, function()
@@ -263,6 +265,7 @@ function Kernel:update(delta)
 
   for pid, process in pairs(self.processes) do
     debug.sethook(process.thread, function()
+      process.streams.stderr("CPU Quota exceeded (Did you forget to break out of a loop?)")
       error("Kernel: CPU Quota exceeded (Did you forget to break out of a loop?)")
     end, "", self.CPUQuota)
 
@@ -274,7 +277,13 @@ function Kernel:update(delta)
     -- Clear out events so they don't mess up
     process.events = {}
 
-    if not success then
+    -- Small guard
+    -- Do not print error if thread is just dead
+    -- This usually happens when an app just exits without return(?)
+    if coroutine.status(process.thread) == "dead" then
+      Kernel:kill(pid)
+    elseif not success then
+      process.streams.stderr("Process " .. tostring(pid) .. " crashed: " .. tostring(err))
       print("Kernel: Process " .. tostring(pid) .. " crashed: " .. tostring(err))
 
       self:kill(pid)
