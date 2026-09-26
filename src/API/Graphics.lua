@@ -1,9 +1,16 @@
-local Colour = require "src.API.Colour"
+local Colour        = require "src.API.Colour"
 local WindowManager = require "src.modules.WindowManager"
-local VirtualFS = require "src.modules.VFS"
+local VirtualFS     = require "src.modules.VFS"
+local Utils         = require "src.Utils"
 
-return function(pid, master)
+return function(kernel, pid, master, streams)
   local drawing = false
+
+  local function err(msg)
+    love.graphics.setCanvas()
+    streams.stderr(msg)
+    error(msg, 3)
+  end
 
   local Graphics = {}
 
@@ -74,20 +81,21 @@ return function(pid, master)
 
   function Graphics.beginDrawing(window)
     if type(window) ~= "table" and not window.__INTERNAL_window_handle then
-      error("Graphics API: Invalid window object")
+      err("Graphics API: Invalid window object")
     end
 
     if drawing then
-      -- TODO: Kernel error crash (Cannot enter draw while already drawing)
+      err("Graphics API: Cannot enter draw mode more than once.")
     end
 
     local real = WindowManager:getWithHandle(window.__INTERNAL_window_handle)
     if not real then
-      error("STOP FUCKING WITH THE HANDLES.")
+      err("STOP FUCKING WITH THE HANDLES.")
+      return
     end
 
     if real.pid ~= pid then
-      -- TODO: Kernel error crash (Cannot draw to another Process)
+      err("Graphics API: You do not own this window.")
     end
 
     love.graphics.setCanvas(real.canvas)
@@ -96,7 +104,7 @@ return function(pid, master)
 
   function Graphics.endDrawing()
     if not drawing then
-      -- TODO: Kernel error crash (Cannot end draw while not drawing)
+      err("Graphics API: Cannot leave draw mode while not in draw mode.")
     end
 
     love.graphics.setCanvas()
@@ -143,7 +151,7 @@ return function(pid, master)
 
   function Graphics.clear(colour)
     if not drawing then
-      -- TODO: Kernel error crash (Cannot draw while not drawing)
+      err("Graphics API: clear: not in draw mode.")
     end
 
     love.graphics.clear(colour:raw())
@@ -151,7 +159,7 @@ return function(pid, master)
 
   function Graphics.print(text, x, y, colour, font)
     if not drawing then
-      -- TODO: Kernel error crash (Cannot end draw while not drawing)
+      err("Graphics API: print: not in draw mode.")
     end
 
     colour = colour or Graphics.colours.white
@@ -164,7 +172,7 @@ return function(pid, master)
 
   function Graphics.rectangle(x, y, w, h, colour, mode)
     if not drawing then
-      -- TODO: Kernel error crash (Cannot draw while not drawing)
+      err("Graphics API: rectangle: not in draw mode.")
     end
 
     mode = mode or "fill"
@@ -176,11 +184,21 @@ return function(pid, master)
   end
 
   function Graphics.line(sx, sy, ex, ey, colour)
+    if not drawing then
+      err("Graphics API: line: not in draw mode.")
+    end
+
     colour = colour or Graphics.colours.white
 
     love.graphics.setColor(colour:raw())
     love.graphics.line(sx, sy, ex, ey)
     love.graphics.setColor(1, 1, 1, 1)
+  end
+
+  --- INTERNAL
+  --- Has no use in actual userland apps (that I can think of)
+  function Graphics.drawMode()
+    return drawing
   end
 
   return Graphics

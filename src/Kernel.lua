@@ -176,7 +176,7 @@ function Kernel:process(path, args, streams, parent, masterPermission)
     return nil, contentErr
   end
 
-  local chunk, chunkErr = loadstring(content)
+  local chunk, chunkErr = loadstring(content, "@" .. absolute)
   if not chunk then
     print("Kernel: Could not create process " .. absolute .. ": " .. chunkErr)
     return nil, chunkErr
@@ -225,6 +225,18 @@ function Kernel:process(path, args, streams, parent, masterPermission)
           break
         end
 
+        -- Do not allow the frame to end if not drawing
+        if env and type(env.graphics) == "table" and type(env.graphics.drawMode) == "function" then
+          if env.graphics.drawMode() then
+            env.graphics.endDrawing()
+            streams.stderr("Cannot end frame without leaving draw mode.")
+            error("App ended frame without leaving draw mode.")
+          end
+        else
+          streams.stderr("WHAT DID YOU DO?")
+          error("WHAT DID YOU DO?")
+        end
+
         delta, events = coroutine.yield()
       end
     end
@@ -242,7 +254,7 @@ function Kernel:process(path, args, streams, parent, masterPermission)
   }
 
   debug.sethook(lock, function()
-    error("Kernel: " .. absolute .. " crashed on start: CPU Quota exceeded.")
+    error("CPU Quota exceeded.", 2)
   end, "", self.CPUQuota)
 
   local success, err = coroutine.resume(lock)
@@ -250,7 +262,7 @@ function Kernel:process(path, args, streams, parent, masterPermission)
   debug.sethook(lock)
 
   if not success then
-    print("Kernel: Process " .. absolute .. " crashed on start: " .. tostring(err))
+    print("Kernel: " .. tostring(err))
 
     WindowManager:closeForPID(pid)
 
@@ -277,15 +289,17 @@ function Kernel:update(delta)
     -- Clear out events so they don't mess up
     process.events = {}
 
-    -- Small guard
-    -- Do not print error if thread is just dead
-    -- This usually happens when an app just exits without return(?)
-    if coroutine.status(process.thread) == "dead" then
-      Kernel:kill(pid)
-    elseif not success then
-      process.streams.stderr("Process " .. tostring(pid) .. " crashed: " .. tostring(err))
-      print("Kernel: Process " .. tostring(pid) .. " crashed: " .. tostring(err))
+    if not success then
+      if err == "cannot resume dead coroutine" then
+        self:kill(pid)
+      else
+        local trace = debug.traceback(process.thread, tostring(err))
+        process.streams.stderr("Process " .. tostring(pid) .. " killed:\n" .. trace)
+        print("Kernel: Process " .. tostring(pid) .. " crashed: " .. trace)
 
+        self:kill(pid)
+      end
+    elseif coroutine.status(process.thread) == "dead" then
       self:kill(pid)
     end
   end

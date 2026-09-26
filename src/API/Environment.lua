@@ -31,14 +31,14 @@ return function(kernel, pid, streams, masterPerms)
       streams.stderr(str)
     end,
 
-    graphics = mkGraphics(pid, masterPerms),
+    graphics = mkGraphics(kernel, pid, masterPerms, streams),
     system = mkSystem(kernel, pid),
     fs = mkFilesystem(kernel, pid)
   }
 
   env.package = {
     loaded = {},
-    path = "./?.lua;/lib/?.lua;/lib/?/init.lua"
+    path = "./?.lua;/lib/?.lua;/lib/?/init.lua;/sys/lib/?.lua;/sys/lib/?/init.lua"
   }
 
   env.require = function(module)
@@ -76,17 +76,17 @@ return function(kernel, pid, streams, masterPerms)
     end
 
     if not content then
-      error("module " .. module .. " not found " .. table.concat(errs, "\n"))
+      streams.stderr("module " .. module .. " not found\n" .. table.concat(errs, "\n"))
+      error("module " .. module .. " not found\n" .. table.concat(errs, "\n"))
     end
 
     local chunk, err = load(content, path, "t", env)
     if not chunk then
+      streams.stderr("Syntax error in " .. path .. ": " .. err)
       error("Syntax error in " .. path .. ": " .. err)
     end
 
     local result = chunk()
-    -- If result does not return a table
-    -- It is just a boolean (why does lua do this?)
     if result == nil then
       result = true
     end

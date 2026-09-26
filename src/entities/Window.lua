@@ -129,6 +129,8 @@ function Window:drawContent()
 
   love.graphics.setColor(1, 1, 1, 1)
   love.graphics.draw(self.canvas, sx, sy)
+
+  love.graphics.setCanvas()
 end
 
 function Window:update(delta)
